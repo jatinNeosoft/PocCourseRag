@@ -25,7 +25,7 @@ export default function Chat() {
   const [messages, setMessages] = useState([
     {
       role: "ai",
-      message: "Welcome! Ask me anything about this course.",
+      content: "Welcome! Ask me anything about this course.",
     },
   ]);
 
@@ -227,29 +227,43 @@ export default function Chat() {
   // -------------------------------------
   return (
     <PageContainer title="AI Mentor Chat">
-      <Card className="flex flex-col h-[75vh] overflow-hidden"> {/* 🔥 */}
-  <CardHeader className="shrink-0"> {/* 🔥 */}
-    <CardTitle className="flex items-center gap-2">
-      🤖 AI Mentor
-      <Badge className="bg-green-600 text-white">Ready</Badge>
-    </CardTitle>
-  </CardHeader>
-
-  <CardContent className="flex flex-col flex-1 min-h-0 overflow-hidden"> {/* 🔥 */}
-    <ScrollArea className="flex-1 pr-4 min-h-0"> {/* 🔥 */}
-      <div className="space-y-3">
-        {messages.map((msg, index) => (
-          <ChatBubble key={index} {...msg} />
-        ))}
-        <div ref={bottomRef} />
-      </div>
-    </ScrollArea>
-
-    <div className="pt-2 shrink-0"> {/* 🔥 */}
-      <ChatInput onSend={sendMessage} />
-    </div>
-  </CardContent>
-</Card>
+      <Card className="flex flex-col h-[75vh] overflow-hidden">
+        {" "}
+        {/* 🔥 */}
+        <CardHeader className="shrink-0">
+          {" "}
+          {/* 🔥 */}
+          <CardTitle className="flex items-center gap-2">
+            🤖 AI Mentor
+            <Badge className="bg-green-600 text-white">Ready</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          {" "}
+          {/* 🔥 */}
+          <ScrollArea className="flex-1 pr-4 min-h-0">
+            {" "}
+            {/* 🔥 */}
+            <div className="space-y-3">
+              {/* {console.log(messages,"messss")} */}
+              {messages.map((msg, index) => (
+                <ChatBubble
+                  key={index}
+                  role={msg.role}
+                  content={msg.content}
+                  streaming={msg.streaming}
+                />
+              ))}
+              <div ref={bottomRef} />
+            </div>
+          </ScrollArea>
+          <div className="pt-2 shrink-0">
+            {" "}
+            {/* 🔥 */}
+            <ChatInput onSend={sendMessage} />
+          </div>
+        </CardContent>
+      </Card>
     </PageContainer>
   );
 }

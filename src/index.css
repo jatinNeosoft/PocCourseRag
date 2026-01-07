@@ -1,5 +1,6 @@
 @import "tw-animate-css";
 @import "tailwindcss";
+@import "highlight.js/styles/vs2015.css";
 
 @custom-variant dark (&:is(.dark *));
 

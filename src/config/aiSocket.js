@@ -17,12 +17,12 @@ export function connectAiSocket({ token, onToken, onDone, onError }) {
   });
 
   socket.on("ai:token", (token) => {
-    console.log("token:",token);
-    
     onToken?.(token);
   });
 
   socket.on("ai:done", () => {
+     console.log("response completedddddddddddddddd");
+     
     onDone?.();
   });
 
@@ -41,8 +41,6 @@ export function sendAiMessage(payload) {
   if (!socket) {
     throw new Error("Socket not initialized");
   }
-  console.log(payload,"payloadpayloadpayload");
-  
   socket.emit("ai:ask", payload);
 }
 
