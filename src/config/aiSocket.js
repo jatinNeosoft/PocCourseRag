@@ -1,50 +1,96 @@
-import { io } from "socket.io-client";
+// config/aiSocket.js
+import { io } from 'socket.io-client';
 
 let socket = null;
 
-export function connectAiSocket({ token, onToken, onDone, onError }) {
-  if (socket) return socket; // singleton
-  socket = io(import.meta.env.VITE_SOCKET_URL, {
-    path: "/socket.io",
-    transports: ["websocket"],
-    auth: {
-      token:`Bearer ${token}`,
-    },
+export function connectAiSocket({
+  token,
+  onToken,
+  onDone,
+  onUserTranscript,
+  onAudioChunk,
+  onAudioComplete,
+  onError,
+}) {
+  if (socket?.connected) {
+    console.log('✅ Socket already connected');
+    return socket;
+  }
+
+  socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
+    auth: { token },
+    transports: ['websocket'],
   });
 
-  socket.on("connected", () => {
-    console.log("✅ AI socket connected");
+  socket.on('connect', () => {
+    console.log('✅ Socket connected:', socket.id);
   });
 
-  socket.on("ai:token", (token) => {
-    onToken?.(token);
+  socket.on('disconnect', () => {
+    console.log('❌ Socket disconnected');
   });
 
-  socket.on("ai:done", () => {
-     console.log("response completedddddddddddddddd");
-     
-    onDone?.();
+  // Text chat events
+  socket.on('ai:token', onToken);
+  socket.on('ai:done', onDone);
+
+  // Audio chat events
+  socket.on('ai:user_transcript', ({ text }) => {
+    onUserTranscript?.(text);
   });
 
-  socket.on("ai:error", (err) => {
-    onError?.(err);
+  socket.on('ai:audio_chunk', (data) => {
+    onAudioChunk?.(data);
   });
 
-  socket.on("disconnect", () => {
-    console.log("❌ AI socket disconnected");
+  socket.on('ai:audio_complete', () => {
+    console.log("🎬 Audio stream complete");
+    console.log(onAudioComplete,"onAudioComplete");
+    
+    onAudioComplete?.();
+  });
+
+  socket.on('ai:error', ({ message }) => {
+    onError?.(message);
   });
 
   return socket;
 }
 
-export function sendAiMessage(payload) {
-  if (!socket) {
-    throw new Error("Socket not initialized");
+export function sendAiMessage({ courseId, question }) {
+  if (!socket?.connected) {
+    console.error('❌ Socket not connected');
+    return;
   }
-  socket.emit("ai:ask", payload);
+
+  socket.emit('ai:ask', { courseId, question });
 }
 
-export function stopAiMessage() {
-  if (!socket) return;
-  socket.emit("ai:stop");
+export function sendAudioChunk(base64Audio) {
+  if (!socket?.connected) {
+    console.error('❌ Socket not connected');
+    return;
+  }
+
+  socket.emit('ai:audio_chunk', { audio: base64Audio });
+}
+
+export function endAudioStream(courseId) {
+  if (!socket?.connected) {
+    console.error('❌ Socket not connected');
+    return;
+  }
+
+  socket.emit('ai:audio_end', { courseId });
+}
+
+export function getSocket() {
+  return socket;
+}
+
+export function disconnectSocket() {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 }

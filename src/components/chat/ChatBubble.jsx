@@ -1,7 +1,9 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { Volume2, VolumeX, Mic, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 function CodeBlock({ language, value }) {
   const [copied, setCopied] = useState(false);
@@ -26,31 +28,67 @@ function CodeBlock({ language, value }) {
   );
 }
 
-export default function ChatBubble({ role, content, streaming }) {
+export default function ChatBubble({ 
+  role, 
+  content, 
+  streaming,
+  audioUrl,
+  isAudioMessage,
+  isAudioPlaying,
+}) {
   const isUser = role === "user";
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  // Audio playback handlers
+  useEffect(() => {
+    if (audioUrl && audioRef.current) {
+      audioRef.current.onended = () => setIsPlaying(false);
+      audioRef.current.onerror = () => setIsPlaying(false);
+    }
+  }, [audioUrl]);
+
+  const toggleAudio = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
 
   // Don't clean during streaming to preserve markdown structure
   const cleanContent = streaming 
     ? content 
-    : content
-        ?.replace(/\n{3,}/g, "\n\n") // only remove excessive newlines
-        .trim();
+    : content?.replace(/\n{3,}/g, "\n\n").trim();
 
   return (
     <div
       className={cn(
-        "px-4 py-3 rounded-lg w-full text-sm", // Changed: removed max-w, added w-full
+        "px-4 py-3 rounded-lg w-full text-sm",
         isUser
-          ? "ml-auto bg-primary text-primary-foreground max-w-[85%]" // User messages stay constrained
-          : "bg-muted text-foreground" // AI messages take full width
+          ? "ml-auto bg-primary text-primary-foreground max-w-[85%]"
+          : "bg-muted text-foreground"
       )}
     >
-      <div className="overflow-x-auto"> {/* Added: horizontal scroll wrapper */}
+      {/* Audio message indicator */}
+      {isAudioMessage && (
+        <div className="flex items-center gap-1.5 opacity-70 mb-2 text-xs">
+          <Mic className="w-3 h-3" />
+          <span>Voice message</span>
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className="overflow-x-auto">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
             p: ({ children }) => (
-              <p className="mb-2 last:mb-0 break-words">{children}</p>
+              <div className="mb-2 last:mb-0 wrap-break-word">{children}</div>
             ),
             a: ({ children, ...props }) => (
               <a
@@ -123,10 +161,77 @@ export default function ChatBubble({ role, content, streaming }) {
           {cleanContent}
         </ReactMarkdown>
       </div>
-      {/* {console.log(streaming,"streaming", role) } */}
+      {/* Streaming indicator */}
       {streaming && role === "assistant" && (
         <span className="inline-block bg-gray-400 ml-1 w-2 h-4 align-middle animate-pulse" />
+      )}
+
+      {/* ✅ Audio playing indicator - REAL-TIME */}
+      {isAudioPlaying && role === "assistant" && !isUser && (
+        <div className="flex items-center gap-2 mt-3 pt-3 border-gray-200 dark:border-gray-700 border-t">
+          <Volume2 className="w-4 h-4 text-primary animate-pulse" />
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground text-xs">Speaking:</span>
+          </div>
+
+          {/* ✅ Audio wave animation */}
+          <div className="flex items-center gap-0.5 ml-2">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-primary rounded-full w-0.5"
+                style={{
+                  animation: `audioWave 0.8s ease-in-out infinite`,
+                  animationDelay: `${i * 0.1}s`,
+                  height: '8px'
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Standalone audio player for text-only responses */}
+      {audioUrl && !isUser && !isAudioPlaying && (
+        <div className="flex items-center gap-2 mt-3 pt-3 border-gray-200 dark:border-gray-700 border-t">
+          <audio ref={audioRef} src={audioUrl} preload="metadata" />
+          
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={toggleAudio}
+            className="p-0 w-8 h-8"
+          >
+            {isPlaying ? (
+              <VolumeX className="w-4 h-4" />
+            ) : (
+              <Volume2 className="w-4 h-4" />
+            )}
+          </Button>
+
+          <span className="text-muted-foreground text-xs">
+            {isPlaying ? "Playing..." : "Play audio response"}
+          </span>
+        </div>
+      )}
+
+      {/* ✅ Processing indicator */}
+      {streaming && role === "assistant" && isAudioPlaying && (
+        <div className="flex items-center gap-2 mt-2 text-muted-foreground text-xs">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          <span>Generating audio...</span>
+        </div>
       )}
     </div>
   );
 }
+
+// ✅ Add CSS animation for audio wave
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes audioWave {
+    0%, 100% { height: 8px; }
+    50% { height: 16px; }
+  }
+`;
+document.head.appendChild(style);

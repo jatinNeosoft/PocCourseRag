@@ -2,31 +2,43 @@ import { useRef } from "react";
 import { connectAiSocket, sendAiMessage } from "@/config/aiSocket";
 import { getToken } from "@/lib/utils";
 
-export function useAiChat({ setMessages }) {
+export function useAiChat({ setMessages, handleAudioChunk }) {
   const aiIndexRef = useRef(null);
+  // ✅ Refs so socket listeners never get stale callbacks
+  const onAudioChunkRef = useRef(handleAudioChunk);
+  // const onAudioCompleteRef = useRef(handleAudioComplete);
+
+  const setMessagesRef = useRef(setMessages);
+
+  // eslint-disable-next-line react-hooks/refs
+  onAudioChunkRef.current = handleAudioChunk;
+  // eslint-disable-next-line react-hooks/refs
+  // onAudioCompleteRef.current = handleAudioComplete;
+
+  // eslint-disable-next-line react-hooks/refs
+  setMessagesRef.current = setMessages;
 
   function initSocket() {
     const token = getToken();
+    const authHeader = token ? `Bearer ${token}` : null;
 
     connectAiSocket({
-      token,
+      token: authHeader,
 
       // 🔥 STREAMING TOKEN
       onToken: (tokenChunk) => {
-        setMessages((prev) => {
+        setMessagesRef.current((prev) => {
           const idx = aiIndexRef.current;
           if (idx === null || !prev[idx]) return prev;
 
           const updated = [...prev];
           const currentMsg = updated[idx];
 
-          // 🧠 Remove thinking phase once
           if (currentMsg.thinking === true) {
             currentMsg.content = "";
             delete currentMsg.thinking;
           }
 
-          // ✅ JUST APPEND - NO CLEANING DURING STREAMING
           updated[idx] = {
             ...currentMsg,
             content: currentMsg.content + tokenChunk,
@@ -36,65 +48,67 @@ export function useAiChat({ setMessages }) {
         });
       },
 
-      // ✅ STREAM END - CLEAN HERE
-      // ✅ STREAM END - CLEAN HERE
-      // ✅ STREAM END - CLEAN HERE
+      // ✅ STREAM END
       onDone: () => {
         const idx = aiIndexRef.current;
-        // Use setTimeout to ensure state update happens after current stack
         setTimeout(() => {
-          setMessages((prev) => {
-            // Add more defensive checks
-            if (idx === null || idx === undefined) {
-              console.error("❌ Invalid index:", idx);
-              return prev;
-            }
-            if (!prev[idx]) {
-              console.error(`❌ No message found at index ${idx}`);
-              return prev;
-            }
+          setMessagesRef.current((prev) => {
+            if (idx === null || idx === undefined) return prev;
+            if (!prev[idx]) return prev;
+
             const updated = [...prev];
             const currentMsg = updated[idx];
-            // Get content safely
             let content = currentMsg.content || "";
+
             try {
-              // 🔥 CLEAN THE COMPLETE CONTENT
               content = content
-                // Clean multiple newlines (keep double newlines for paragraphs)
                 .replace(/\n{3,}/g, "\n\n")
-
-                // Remove extra spaces (but not in code blocks)
                 .replace(/[^\S\n]{2,}/g, " ")
-
-                // Fix spaces inside bold **Heading**
                 .replace(/\*\*\s+([^*]+?)\s+\*\*/g, "**$1**")
-
                 .trim();
+            // eslint-disable-next-line no-unused-vars
             } catch (error) {
-              console.error("💥 Error cleaning content:", error);
               content = currentMsg.content;
             }
 
-            // CRITICAL: Always set streaming to false
-            updated[idx] = {
-              ...currentMsg,
-              content,
-              streaming: false,
-            };
+            updated[idx] = { ...currentMsg, content, streaming: false };
             return updated;
           });
         }, 0);
         aiIndexRef.current = null;
       },
 
-      // ❌ ERROR HANDLING
+      // ✅ USER TRANSCRIPT
+      onUserTranscript: (text) => {
+        setMessagesRef.current((prev) => [
+          ...prev,
+          { role: "user", content: text },
+        ]);
+        setMessagesRef.current((prev) => {
+          aiIndexRef.current = prev.length;
+          return [
+            ...prev,
+             {
+          role: "assistant",
+          content: "🧠 Thinking...",
+          streaming: true,
+          thinking: true,
+        },
+          ];
+        });
+      },
+
+      // ✅ AUDIO CHUNK — reads ref at event time, never stale
+      onAudioChunk: (data) => {
+        console.log("🎤 Audio chunk received, forwarding...");
+        onAudioChunkRef.current?.(data);
+      },
+      // ❌ ERROR
       onError: (err) => {
         console.error("AI error:", err);
-
-        setMessages((prev) => {
+        setMessagesRef.current((prev) => {
           const updated = [...prev];
           const idx = aiIndexRef.current;
-
           if (idx !== null && updated[idx]) {
             updated[idx] = {
               role: "assistant",
@@ -102,21 +116,19 @@ export function useAiChat({ setMessages }) {
               streaming: false,
             };
           }
-
           return updated;
         });
-
         aiIndexRef.current = null;
       },
     });
   }
 
   function handleSend(courseId, text) {
-    // USER message
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
-
-    // 🧠 THINKING PHASE
-    setMessages((prev) => {
+    setMessagesRef.current((prev) => [
+      ...prev,
+      { role: "user", content: text },
+    ]);
+    setMessagesRef.current((prev) => {
       aiIndexRef.current = prev.length;
       return [
         ...prev,
@@ -128,12 +140,10 @@ export function useAiChat({ setMessages }) {
         },
       ];
     });
-    sendAiMessage({
-      courseId,
-      question: text,
-    });
+    sendAiMessage({ courseId, question: text });
   }
 
+  // ✅ Return everything ChatComponent needs
   return {
     initSocket,
     handleSend,

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,17 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
-import ChatBubble from "@/components/chat/ChatBubble";
-import ChatInput from "@/components/chat/ChatInput";
+
 import PageContainer from "@/components/layout/PageContainer";
 
 import { fetchAiStatus, fetchChatHistory } from "@/api/fetchAllCourses";
 import { useAiChat } from "@/hooks/useAiChats";
+import MentorHeader from "@/components/chat/MentorHeader";
+import ChatComponent from "@/components/chat/ChatComponent";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
-export default function Chat() {
-  const bottomRef = useRef(null);
+
+export default function Chat() {  
+
   const { courseId } = useParams();
   const navigate = useNavigate();
 
@@ -28,18 +30,25 @@ export default function Chat() {
       content: "Welcome! Ask me anything about this course.",
     },
   ]);
+      const {
+    isSpeaking,
+    isProcessing,
+    setIsProcessing,
+    handleAudioChunk,
+    cleanup,
+  } = useAudioPlayer({ setMessages }); // ✅ direct import of audio player hook
 
   const { initSocket, handleSend } = useAiChat({
     setMessages,
+    handleAudioChunk,
   });
-
   // 🔥 Connect WS ONCE
   useEffect(() => {
     let mounted = true;
 
     const init = async () => {
       // 1️⃣ Init socket
-      initSocket();
+       initSocket();
 
       // 2️⃣ Load chat history
       try {
@@ -65,9 +74,7 @@ export default function Chat() {
     };
   }, [courseId]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+
   // -------------------------------------
   // FETCH AI STATUS
   // -------------------------------------
@@ -141,8 +148,8 @@ export default function Chat() {
   // NOT READY (SETUP / INDEXING / FAILED)
   // -------------------------------------
   if (aiStatus?.status !== "READY") {
-    const steps = aiStatus.steps || {};
-    const progressPercent = aiStatus.progress ?? 0;
+    const steps = aiStatus?.steps || {};
+    const progressPercent = aiStatus?.progress ?? 0;
 
     return (
       <PageContainer title="AI Mentor Setup">
@@ -152,10 +159,10 @@ export default function Chat() {
               🤖 AI Mentor Setup
               <Badge
                 variant={
-                  aiStatus.status === "FAILED" ? "destructive" : "secondary"
+                  aiStatus?.status === "FAILED" ? "destructive" : "secondary"
                 }
               >
-                {aiStatus.status}
+                {aiStatus?.status}
               </Badge>
             </CardTitle>
           </CardHeader>
@@ -169,21 +176,21 @@ export default function Chat() {
 
             {/* STEPS */}
             <ul className="space-y-2 text-sm">
-              <li>{steps.course_loaded ? "✔" : "⏳"} Course loaded</li>
-              <li>{steps.slides_indexed ? "✔" : "⏳"} Slides indexed</li>
-              <li>{steps.videos_transcribed ? "✔" : "⏳"} Video transcripts</li>
-              <li>{steps.vector_indexed ? "✔" : "⏳"} Vector database</li>
-              <li>{steps.graph_indexed ? "✔" : "⏳"} Knowledge graph</li>
+              <li>{steps?.course_loaded ? "✔" : "⏳"} Course loaded</li>
+              <li>{steps?.slides_indexed ? "✔" : "⏳"} Slides indexed</li>
+              <li>{steps?.videos_transcribed ? "✔" : "⏳"} Video transcripts</li>
+              <li>{steps?.vector_indexed ? "✔" : "⏳"} Vector database</li>
+              <li>{steps?.graph_indexed ? "✔" : "⏳"} Knowledge graph</li>
             </ul>
 
             {/* COUNTERS */}
-            {aiStatus.counters && (
+            {aiStatus?.counters && (
               <>
                 <Separator />
                 <div className="space-y-1 text-muted-foreground text-xs">
-                  <p>Slides: {aiStatus.counters.slides}</p>
-                  <p>Videos: {aiStatus.counters.videos}</p>
-                  <p>Graph: {aiStatus.counters.graph}</p>
+                  <p>Slides: {aiStatus?.counters.slides}</p>
+                  <p>Videos: {aiStatus?.counters.videos}</p>
+                  <p>Graph: {aiStatus?.counters.graph}</p>
                 </div>
               </>
             )}
@@ -233,36 +240,11 @@ export default function Chat() {
         <CardHeader className="shrink-0">
           {" "}
           {/* 🔥 */}
-          <CardTitle className="flex items-center gap-2">
-            🤖 AI Mentor
-            <Badge className="bg-green-600 text-white">Ready</Badge>
+          <CardTitle>
+            <MentorHeader />
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          {" "}
-          {/* 🔥 */}
-          <ScrollArea className="flex-1 pr-4 min-h-0">
-            {" "}
-            {/* 🔥 */}
-            <div className="space-y-3">
-              {/* {console.log(messages,"messss")} */}
-              {messages.map((msg, index) => (
-                <ChatBubble
-                  key={index}
-                  role={msg.role}
-                  content={msg.content}
-                  streaming={msg.streaming}
-                />
-              ))}
-              <div ref={bottomRef} />
-            </div>
-          </ScrollArea>
-          <div className="pt-2 shrink-0">
-            {" "}
-            {/* 🔥 */}
-            <ChatInput onSend={sendMessage} />
-          </div>
-        </CardContent>
+        <ChatComponent messages={messages} sendMessage={sendMessage} courseId={courseId} setMessages={setMessages} isSpeaking={isSpeaking} isProcessing={isProcessing} setIsProcessing={setIsProcessing} cleanupAudio={cleanup} />
       </Card>
     </PageContainer>
   );
