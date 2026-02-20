@@ -122,7 +122,7 @@ const handleAudioComplete = useCallback(() => {
   // =========================
   // HANDLE AUDIO CHUNK
   // =========================
-  const handleAudioChunk = useCallback(({ audio, text }) => {
+  const handleAudioChunk = useCallback(({ audio, text }, setMessagesRef) => {
     console.log("🎵 Handling audio chunk in player hook", {
       hasAudio: !!audio,
       text: text,

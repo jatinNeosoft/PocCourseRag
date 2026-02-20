@@ -7,16 +7,13 @@ export function useAiChat({ setMessages, handleAudioChunk }) {
   // ✅ Refs so socket listeners never get stale callbacks
   const onAudioChunkRef = useRef(handleAudioChunk);
   // const onAudioCompleteRef = useRef(handleAudioComplete);
-
-  const setMessagesRef = useRef(setMessages);
-
   // eslint-disable-next-line react-hooks/refs
   onAudioChunkRef.current = handleAudioChunk;
   // eslint-disable-next-line react-hooks/refs
   // onAudioCompleteRef.current = handleAudioComplete;
 
   // eslint-disable-next-line react-hooks/refs
-  setMessagesRef.current = setMessages;
+
 
   function initSocket() {
     const token = getToken();
@@ -27,7 +24,7 @@ export function useAiChat({ setMessages, handleAudioChunk }) {
 
       // 🔥 STREAMING TOKEN
       onToken: (tokenChunk) => {
-        setMessagesRef.current((prev) => {
+        setMessages((prev) => {
           const idx = aiIndexRef.current;
           if (idx === null || !prev[idx]) return prev;
 
@@ -52,7 +49,7 @@ export function useAiChat({ setMessages, handleAudioChunk }) {
       onDone: () => {
         const idx = aiIndexRef.current;
         setTimeout(() => {
-          setMessagesRef.current((prev) => {
+          setMessages((prev) => {
             if (idx === null || idx === undefined) return prev;
             if (!prev[idx]) return prev;
 
@@ -80,11 +77,11 @@ export function useAiChat({ setMessages, handleAudioChunk }) {
 
       // ✅ USER TRANSCRIPT
       onUserTranscript: (text) => {
-        setMessagesRef.current((prev) => [
+        setMessages((prev) => [
           ...prev,
           { role: "user", content: text },
         ]);
-        setMessagesRef.current((prev) => {
+        setMessages((prev) => {
           aiIndexRef.current = prev.length;
           return [
             ...prev,
@@ -106,7 +103,7 @@ export function useAiChat({ setMessages, handleAudioChunk }) {
       // ❌ ERROR
       onError: (err) => {
         console.error("AI error:", err);
-        setMessagesRef.current((prev) => {
+        setMessages((prev) => {
           const updated = [...prev];
           const idx = aiIndexRef.current;
           if (idx !== null && updated[idx]) {
@@ -124,11 +121,11 @@ export function useAiChat({ setMessages, handleAudioChunk }) {
   }
 
   function handleSend(courseId, text) {
-    setMessagesRef.current((prev) => [
+    setMessages((prev) => [
       ...prev,
       { role: "user", content: text },
     ]);
-    setMessagesRef.current((prev) => {
+    setMessages((prev) => {
       aiIndexRef.current = prev.length;
       return [
         ...prev,
