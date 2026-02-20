@@ -8,44 +8,47 @@ export function useAudioPlayer({ setMessages }) {
   const isPlayingRef = useRef(false);
   const serverFinishedRef = useRef(false);
 
-   // =========================
+  // =========================
   // HANDLE AUDIO COMPLETE
   // =========================
-const handleAudioComplete = useCallback(() => {
-  console.log("✅ Server finished sending audio");
+  const handleAudioComplete = useCallback(() => {
+    console.log("✅ Server finished sending audio");
 
-  serverFinishedRef.current = true;
+    serverFinishedRef.current = true;
 
-  setMessages((prev) => {
-    if (prev.length === 0) return prev;
-    const updated = [...prev];
-    const lastIndex = updated.length - 1;
-    if (updated[lastIndex].role === "assistant") {
-      updated[lastIndex] = { ...updated[lastIndex], streaming: false };
+    setMessages((prev) => {
+      if (prev.length === 0) return prev;
+      const updated = [...prev];
+      const lastIndex = updated.length - 1;
+      if (updated[lastIndex].role === "assistant") {
+        updated[lastIndex] = { ...updated[lastIndex], streaming: false };
+      }
+      return updated;
+    });
+
+    if (!isPlayingRef.current && audioQueueRef.current.length === 0) {
+      console.log("🛑 Queue empty and not playing, stopping processing");
+      setIsSpeaking(false);
+      setIsProcessing(false);
+      serverFinishedRef.current = false;
     }
-    return updated;
-  });
-
-  if (!isPlayingRef.current && audioQueueRef.current.length === 0) {
-    console.log("🛑 Queue empty and not playing, stopping processing");
-    setIsSpeaking(false);
-    setIsProcessing(false);
-    serverFinishedRef.current = false;
-  }
-}, [setMessages]); // ✅ now stable
+  }, [setMessages]); // ✅ now stable
 
   // =========================
   // AUDIO PLAYBACK QUEUE
   // =========================
   const playNext = useCallback(() => {
-    console.log("🎬 playNext called, queue length:", audioQueueRef.current.length);
+    console.log(
+      "🎬 playNext called, queue length:",
+      audioQueueRef.current.length
+    );
 
-     if (audioQueueRef.current.length === 0) {
-    isPlayingRef.current = false;
-    // eslint-disable-next-line react-hooks/immutability
-    handleAudioComplete(); // ✅ now refers to the correct, fresh version
-    return;
-  }
+    if (audioQueueRef.current.length === 0) {
+      isPlayingRef.current = false;
+      // eslint-disable-next-line react-hooks/immutability
+      handleAudioComplete(); // ✅ now refers to the correct, fresh version
+      return;
+    }
     isPlayingRef.current = true;
     setIsSpeaking(true);
 
@@ -72,22 +75,22 @@ const handleAudioComplete = useCallback(() => {
         console.log("📝 Appending text to message:", text);
         setMessages((prev) => {
           const last = prev[prev.length - 1];
-            console.log("🔍 Last message before append:", last);
-            
-             if (last.thinking === true) {
-            last.content = "";
-            delete last.thinking;
+          const updated = [...prev];
 
-            return [
-              ...prev,
-              { role: "assistant", content: text, streaming: true },
-            ];
+          // Case 1: Transition from Thinking to Streaming
+          if (last?.thinking) {
+            updated[updated.length - 1] = {
+              role: "assistant",
+              content: text, // Start with the first chunk of text
+              streaming: true,
+            };
+            return updated;
           }
 
-          const updated = [...prev];
+          // Case 2: Already streaming, append the text
           updated[updated.length - 1] = {
             ...last,
-            content: last.content + text,
+            content: (last.content || "") + text,
             streaming: true,
           };
 
@@ -117,31 +120,37 @@ const handleAudioComplete = useCallback(() => {
       console.error("❌ Audio conversion error:", err);
       playNext();
     }
-  // eslint-disable-next-line react-hooks/immutability
+    // eslint-disable-next-line react-hooks/immutability
   }, [setMessages, handleAudioComplete]);
   // =========================
   // HANDLE AUDIO CHUNK
   // =========================
-  const handleAudioChunk = useCallback(({ audio, text }, setMessagesRef) => {
-    console.log("🎵 Handling audio chunk in player hook", {
-      hasAudio: !!audio,
-      text: text,
-      queueLength: audioQueueRef.current.length,
-    });
+  const handleAudioChunk = useCallback(
+    ({ audio, text }) => {
+      console.log("🎵 Handling audio chunk in player hook", {
+        hasAudio: !!audio,
+        text: text,
+        queueLength: audioQueueRef.current.length,
+      });
 
-    if (!audio) {
-      console.warn("⚠️ No audio in chunk");
-      return;
-    }
+      if (!audio) {
+        console.warn("⚠️ No audio in chunk");
+        return;
+      }
 
-    audioQueueRef.current.push({ audio, text });
-    console.log("📥 Added to queue, new length:", audioQueueRef.current.length);
+      audioQueueRef.current.push({ audio, text });
+      console.log(
+        "📥 Added to queue, new length:",
+        audioQueueRef.current.length
+      );
 
-    if (!isPlayingRef.current) {
-      console.log("▶️ Starting playback");
-      playNext();
-    }
-  }, [playNext]);
+      if (!isPlayingRef.current) {
+        console.log("▶️ Starting playback");
+        playNext();
+      }
+    },
+    [playNext]
+  );
 
   // =========================
   // CLEANUP (call on unmount)
