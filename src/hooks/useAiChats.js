@@ -24,6 +24,8 @@ export function useAiChat({ setMessages, handleAudioChunk }) {
 
       // 🔥 STREAMING TOKEN
       onToken: (tokenChunk) => {
+        console.log(tokenChunk,"tokenChunktokenChunktokenChunktokenChunk");
+        
         setMessages((prev) => {
           const idx = aiIndexRef.current;
           if (idx === null || !prev[idx]) return prev;

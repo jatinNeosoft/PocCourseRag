@@ -1,5 +1,8 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { Volume2, VolumeX, Mic, Loader2 } from "lucide-react";
@@ -28,9 +31,9 @@ function CodeBlock({ language, value }) {
   );
 }
 
-export default function ChatBubble({ 
-  role, 
-  content, 
+export default function ChatBubble({
+  role,
+  content,
   streaming,
   audioUrl,
   isAudioMessage,
@@ -60,10 +63,22 @@ export default function ChatBubble({
     }
   };
 
+  const convertLatexDelimiters = (text) => {
+    if (!text) return text;
+    return text
+      .replace(/\\\((.+?)\\\)/gs, '$$$1$$')
+      .replace(/\\\[(.+?)\\\]/gs, '\n$$$$\n$1\n$$$$\n')
+      .replace(/\(([^()]*(?:\\(?:sqrt|frac|times|cdot|rightarrow|leq|geq|neq|sum|int|infty|text)[^()]*)+)\)/g, '$$$1$$')
+      // eslint-disable-next-line no-useless-escape
+      .replace(/\[([^\[\]]*(?:\\(?:sqrt|frac|times|cdot|rightarrow|leq|geq|neq|sum|int|infty|text)[^\[\]]*)+)\]/g, '\n$$$$\n$1\n$$$$\n')
+      .replace(/(?<!\$)\b(\d+)\^(\d+)\b(?!\$)/g, '$$$1^$2$$')
+      .replace(/(?<!\$)\\?sqrt\{([^}]+)\}/g, '$$\\sqrt{$1}$$');
+  };
+
   // Don't clean during streaming to preserve markdown structure
   const cleanContent = streaming 
-    ? content 
-    : content?.replace(/\n{3,}/g, "\n\n").trim();
+    ? convertLatexDelimiters(content)
+    : convertLatexDelimiters(content?.replace(/\n{3,}/g, "\n\n").trim());
 
   return (
     <div
@@ -85,7 +100,24 @@ export default function ChatBubble({
       {/* Main content */}
       <div className="overflow-x-auto">
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[
+            remarkGfm,
+            [
+              remarkMath,
+              {
+                singleDollarTextMath: true,
+              },
+            ],
+          ]}
+          rehypePlugins={[
+            [
+              rehypeKatex,
+              {
+                trust: true,
+                strict: false,
+              },
+            ],
+          ]}
           components={{
             p: ({ children }) => (
               <div className="mb-2 last:mb-0 wrap-break-word">{children}</div>
@@ -106,17 +138,21 @@ export default function ChatBubble({
             ol: ({ children }) => (
               <ol className="space-y-1 my-2 pl-5 list-decimal">{children}</ol>
             ),
-            li: ({ children }) => (
-              <li className="break-words">{children}</li>
-            ),
+            li: ({ children }) => <li className="break-words">{children}</li>,
             h1: ({ children }) => (
-              <h1 className="mt-4 mb-2 font-bold text-xl break-words">{children}</h1>
+              <h1 className="mt-4 mb-2 font-bold text-xl break-words">
+                {children}
+              </h1>
             ),
             h2: ({ children }) => (
-              <h2 className="mt-3 mb-2 font-bold text-lg break-words">{children}</h2>
+              <h2 className="mt-3 mb-2 font-bold text-lg break-words">
+                {children}
+              </h2>
             ),
             h3: ({ children }) => (
-              <h3 className="mt-2 mb-1 font-bold text-base break-words">{children}</h3>
+              <h3 className="mt-2 mb-1 font-bold text-base break-words">
+                {children}
+              </h3>
             ),
             strong: ({ children }) => (
               <strong className="font-semibold">{children}</strong>
@@ -130,12 +166,13 @@ export default function ChatBubble({
                 );
               const language = className?.replace("language-", "");
               return (
-                <CodeBlock language={language} value={String(children).trim()} />
+                <CodeBlock
+                  language={language}
+                  value={String(children).trim()}
+                />
               );
             },
-            pre: ({ children }) => (
-              <div className="my-2">{children}</div>
-            ),
+            pre: ({ children }) => <div className="my-2">{children}</div>,
             table: ({ children }) => (
               <div className="my-2 overflow-x-auto">
                 <table className="border border-gray-300 min-w-full border-collapse">
@@ -183,7 +220,7 @@ export default function ChatBubble({
                 style={{
                   animation: `audioWave 0.8s ease-in-out infinite`,
                   animationDelay: `${i * 0.1}s`,
-                  height: '8px'
+                  height: "8px",
                 }}
               />
             ))}
@@ -195,7 +232,7 @@ export default function ChatBubble({
       {audioUrl && !isUser && !isAudioPlaying && (
         <div className="flex items-center gap-2 mt-3 pt-3 border-gray-200 dark:border-gray-700 border-t">
           <audio ref={audioRef} src={audioUrl} preload="metadata" />
-          
+
           <Button
             size="sm"
             variant="ghost"
@@ -227,7 +264,7 @@ export default function ChatBubble({
 }
 
 // ✅ Add CSS animation for audio wave
-const style = document.createElement('style');
+const style = document.createElement("style");
 style.textContent = `
   @keyframes audioWave {
     0%, 100% { height: 8px; }

@@ -1,16 +1,16 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { useCachedImage } from "@/hooks/usefetchCourseImage"
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useCachedImage } from "@/hooks/usefetchCourseImage";
 
 export default function CourseCard({ course, onSelect }) {
-  const { imageUrl, loading } = useCachedImage(course.id)
+  const { imageUrl, loading } = useCachedImage(course.id);
 
   return (
     <Card className="flex flex-col hover:shadow-lg h-full overflow-hidden transition">
       {/* Image */}
       <div className="relative bg-muted w-full h-40 overflow-hidden">
-        {loading ? (
+        {loading || imageUrl === "" ? (
           <div className="bg-muted w-full h-full animate-pulse" />
         ) : (
           <img
@@ -47,14 +47,11 @@ export default function CourseCard({ course, onSelect }) {
 
         {/* Button pinned to bottom */}
         <div className="mt-auto">
-          <Button
-            className="w-full"
-            onClick={() => onSelect(course)}
-          >
+          <Button className="w-full" onClick={() => onSelect(course)}>
             Start Learning
           </Button>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
