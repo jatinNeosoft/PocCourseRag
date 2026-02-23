@@ -10,16 +10,16 @@ import { sendAudioChunk, endAudioStream } from "@/config/aiSocket";
 const ChatComponent = ({ courseId, messages, sendMessage, cleanupAudio, setIsProcessing, isSpeaking, isProcessing }) => {
   const [isListening, setIsListening] = useState(false);
 
-  const bottomRef = useRef(null);
+  // const bottomRef = useRef(null);
   const mediaRecorderRef = useRef(null);
 
 
   // =========================
   // Auto Scroll
   // =========================
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // useEffect(() => {
+  //   bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  // }, [messages]);
 
   // =========================
   // Cleanup
@@ -134,7 +134,7 @@ const ChatComponent = ({ courseId, messages, sendMessage, cleanupAudio, setIsPro
               isAudioPlaying={isSpeaking && index === messages.length - 1}
             />
           ))}
-          <div ref={bottomRef} />
+          {/* <div ref={bottomRef} /> */}
         </div>
       </ScrollArea>
        {console.log(isProcessing, "isProcessing in ChatComponent")}
